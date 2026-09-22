@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home SOC Automation: A Self-Healing Linux Security Toolkit | Kwasi M. Kontor</title>
+  <meta name="description" content="A personal Linux security toolkit I designed and maintain: automated self-healing health checks, IDS/IPS, DNS-layer threat filtering, infrastructure-as-code discipline, and a GUI control panel with its own automated test harness.">
+  <meta property="og:title" content="Home SOC Automation: A Self-Healing Linux Security Toolkit">
+  <meta property="og:description" content="Self-heal watchdog, IDS/IPS, DNS-layer filtering, infrastructure-as-code, and a Python/Tkinter control panel with its own test suite — the daily-driver toolkit behind the lab work.">
+  <meta property="og:type" content="article">
+  <link rel="icon" type="image/png" href="https://kontor.studio/kataleya-demo/assets/favicon.png">
+  <style>
+    :root {
+      --bg:       #080809;
+      --ph:       #c8f563;
+      --ph-dim:   rgba(200,245,99,0.55);
+      --ph-faint: rgba(200,245,99,0.22);
+      --ph-rgb:   200,245,99;
+      --text:     rgba(226,224,220,0.88);
+      --dim:      rgba(226,224,220,0.45);
+      --rule:     rgba(200,245,99,0.14);
+      --surface:  rgba(200,245,99,0.04);
+    }
+    [data-phase="nyx"]       { --ph:#eb6f92; --ph-dim:rgba(235,111,146,0.55); --ph-faint:rgba(235,111,146,0.22); --ph-rgb:235,111,146; --rule:rgba(235,111,146,0.14); --surface:rgba(235,111,146,0.04); }
+    [data-phase="desire"]    { --ph:#f6c177; --ph-dim:rgba(246,193,119,0.55); --ph-faint:rgba(246,193,119,0.22); --ph-rgb:246,193,119; --rule:rgba(246,193,119,0.14); --surface:rgba(246,193,119,0.04); }
+    [data-phase="still-pine"]{ --ph:#9ccfd8; --ph-dim:rgba(156,207,216,0.55); --ph-faint:rgba(156,207,216,0.22); --ph-rgb:156,207,216; --rule:rgba(156,207,216,0.14); --surface:rgba(156,207,216,0.04); }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { background:var(--bg); color:var(--text); font-family:'Courier New',Courier,monospace; font-size:13px; line-height:1.7; min-height:100vh; }
+    a { color:inherit; text-decoration:none; }
+    a:hover { color:var(--ph); }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+    .boot { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 2rem; }
+    .boot-sys { color: var(--ph); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .boot-title { font-size: 1.15rem; font-weight: bold; color: var(--text); margin: .35rem 0 .25rem; }
+    .boot-meta { color: var(--dim); font-size: 11px; }
+    .boot-meta span { color: var(--ph-dim); }
+    .cursor { display:inline-block; width:8px; height:1em; background:var(--ph); vertical-align:text-bottom; animation:blink 1.1s step-end infinite; }
+    @keyframes blink { 50%{opacity:0} }
+
+    .cli { color: var(--dim); font-size: 11px; margin: 2rem 0 .6rem; }
+    .cli .prompt { color: var(--ph-dim); }
+
+    .sec-head { color: var(--ph); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--rule); padding-bottom: .4rem; margin-bottom: 1rem; }
+
+    .p { display:block; margin-bottom:1.25em; }
+    .p:last-child { margin-bottom:0; }
+
+    .phase-badge {
+      display: inline-block;
+      border: 1px solid var(--rule);
+      padding: .15rem .6rem;
+      font-size: 10px;
+      letter-spacing: .08em;
+      color: var(--ph-dim);
+      margin-bottom: 1.5rem;
+    }
+    .phase-badge.done { border-color: var(--ph-dim); color: var(--ph); }
+    .phase-badge.wip  { border-color: rgba(246,193,119,0.4); color: #f6c177; }
+
+    .pipeline { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 1.5rem; font-size: 11px; }
+    .pipe-node { border: 1px solid var(--rule); padding: .25rem .75rem; color: var(--ph-dim); white-space: nowrap; }
+    .pipe-node.active { border-color: var(--ph-dim); color: var(--ph); }
+    .pipe-arrow { color: var(--dim); }
+
+    .det-grid { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0; }
+    .det-card { border: 1px solid var(--rule); padding: .75rem 1rem; background: var(--surface); }
+    .det-id { color: var(--ph); font-size: 10px; letter-spacing: .1em; }
+    .det-title { color: var(--text); font-weight: bold; margin: .2rem 0; }
+    .det-meta { color: var(--dim); font-size: 10px; margin-bottom: .6rem; }
+    .det-status { font-size: 10px; }
+    .det-status.live { color: var(--ph); }
+
+    .log-entry { display: flex; gap: .75rem; margin-bottom: .4rem; font-size: 12px; }
+    .log-ok  { color: var(--ph); flex-shrink: 0; }
+    .log-txt { color: var(--dim); }
+
+    .warn { border-left: 2px solid #f6c177; padding: .5rem 1rem; margin: 1rem 0; font-size: 11px; color: var(--dim); }
+    .warn .tag { color: #f6c177; }
+    .note { border-left: 2px solid var(--ph-dim); padding: .5rem 1rem; margin: 1rem 0; font-size: 11px; color: var(--dim); }
+    .note .tag { color: var(--ph-dim); }
+
+    .foot { border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 3rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; font-size: 10px; color: var(--dim); }
+    .foot a:hover { color: var(--ph); }
+    .phase-label { color: var(--ph-dim); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div style="text-align:center;padding:20px 0 8px;">
+    <a href="https://kwasikontor.dev" target="_blank" rel="noopener noreferrer">
+      <img src="https://kontor.studio/butterfly-dna.gif" alt="Kwasi M. Kontor" style="width:72px;height:72px;border-radius:50%;display:block;margin:0 auto;filter:drop-shadow(0 0 14px rgba(200,245,99,0.2));" />
+    </a>
+  </div>
+
+  <!-- boot header -->
+  <div class="boot">
+    <div class="boot-sys">SYSTEM: BLUE_TEAM_ARCHIVE ▸ SECURITY_TOOLKIT _</div>
+    <div class="boot-title">Home SOC Automation: A Self-Healing Linux Security Toolkit<span class="cursor"></span></div>
+    <div class="boot-meta">
+      <span>2026-09-22</span> &nbsp;·&nbsp; Linux · Python · systemd · Suricata · NextDNS · Bash
+      &nbsp;·&nbsp; <span>ACTIVE — DAILY DRIVER</span>
+    </div>
+  </div>
+
+  <div class="phase-badge done">[ STATUS ] Runs continuously on my primary machine — not a lab demo, the real daily-use defense</div>
+
+  <!-- pipeline -->
+  <div class="cli"><span class="prompt">$</span> arc read TOOLKIT --section=pipeline</div>
+  <div class="sec-head">[ pipeline ]</div>
+  <div class="pipeline">
+    <div class="pipe-node active">DNS-layer filtering</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-node active">IDS/IPS</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-node active">Self-heal watchdog</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-node active">Config drift check</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-node active">GUI control panel</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-node active">Dual-remote git backup</div>
+  </div>
+
+  <!-- overview -->
+  <div class="cli"><span class="prompt">$</span> arc read TOOLKIT --section=overview</div>
+  <div class="sec-head">[ overview ]</div>
+  <div class="p">The Wazuh lab (see the SOC Lab Build write-up) is a deliberately-built, deliberately-exposed research environment. This is the opposite kind of project: the actual defense running on the machine I use every day. It started as a handful of one-off scripts and grew into a real personal ops platform — around 55 tracked tools, a periodic self-heal watchdog, an intrusion detection stack, DNS-layer threat filtering, and a GUI control panel I designed and built myself to run all of it without needing a terminal open.</div>
+  <div class="p">The design principle running through all of it: automate what should never depend on me remembering to check it, and fail loud instead of failing silent. A drifted config, a stopped watcher, a broken symlink — all of it gets caught on a schedule, not discovered later by accident.</div>
+
+  <!-- components -->
+  <div class="cli"><span class="prompt">$</span> arc read TOOLKIT --section=components</div>
+  <div class="sec-head">[ components ]</div>
+
+  <div class="det-grid">
+    <div class="det-card">
+      <div class="det-id">SELF-HEAL</div>
+      <div class="det-title">Automated Health Watchdog</div>
+      <div class="det-meta">~25 checks, scheduled + on-demand</div>
+      <div class="p" style="margin:0;font-size:12px;">Runs a battery of health checks on a schedule — intrusion-prevention services, DNS resolver state, failed systemd units, log watchers, cloud-lab guardrails (idle-cost backstop, conflict detection) — and either fixes what it safely can or flags it for a human to look at. Deliberately does <em>not</em> auto-recreate a tool that's gone missing entirely: "missing" is ambiguous — accidentally deleted, or intentionally retired — and silently resurrecting something that was deliberately killed off is worse than leaving a gap flagged for review.</div>
+      <div class="det-status live" style="margin-top:.5rem;">● systemd timer, real remediation + a written run log every cycle</div>
+    </div>
+
+    <div class="det-card">
+      <div class="det-id">IDS/IPS</div>
+      <div class="det-title">Intrusion Detection + Prevention Stack</div>
+      <div class="det-meta">Suricata · Sagan · EveBox · fail2ban · ClamAV · rkhunter</div>
+      <div class="p" style="margin:0;font-size:12px;">Network-layer detection (Suricata) feeding log-correlation (Sagan) and a triage UI (EveBox), plus fail2ban for brute-force response, and scheduled ClamAV/rkhunter sweeps. All watched by the self-heal watchdog above — a stopped IDS process is treated as a real incident, not background noise.</div>
+      <div class="det-status live" style="margin-top:.5rem;">● all four watcher services independently monitored</div>
+    </div>
+
+    <div class="det-card">
+      <div class="det-id">DNS-FILTER</div>
+      <div class="det-title">DNS-Layer Threat Filtering</div>
+      <div class="det-meta">NextDNS, with an automated repair path</div>
+      <div class="p" style="margin:0;font-size:12px;">Network-wide DNS-layer filtering/telemetry, with its own self-heal check: if the resolver daemon drops or routing silently reverts to an unfiltered path, it gets caught and restarted on the next cycle instead of leaving the network unfiltered until someone notices.</div>
+      <div class="det-status live" style="margin-top:.5rem;">● checked every self-heal cycle</div>
+    </div>
+
+    <div class="det-card">
+      <div class="det-id">SOT</div>
+      <div class="det-title">Infrastructure-as-Code Discipline</div>
+      <div class="det-meta">Source-of-truth tracking for ~55 scripts</div>
+      <div class="p" style="margin:0;font-size:12px;">Every tool lives in one git repo and is symlinked into the live execution path — editing either copy edits the same file, so <code>git status</code> always tells the truth about what's actually changed. A drift check catches broken symlinks or out-of-sync permissions; non-symlinkable state (crontab, systemd units, sudoers fragments) gets explicit snapshot/diff/install commands instead of being edited blind. Pushes to two independent GitHub remotes on every change, plus an encrypted offline mirror, so there's no single point of failure for the tooling itself.</div>
+      <div class="det-status live" style="margin-top:.5rem;">● zero drift = the repo IS the live config, not a stale copy of it</div>
+    </div>
+
+    <div class="det-card">
+      <div class="det-id">GUI-PANEL</div>
+      <div class="det-title">Control Panel with Its Own Test Suite</div>
+      <div class="det-meta">Python / Tkinter, class-based (Runner / Poller / View)</div>
+      <div class="p" style="margin:0;font-size:12px;">A desktop control panel over the whole toolkit — live status tiles, category-organized action buttons, a shared output console — so day-to-day operation doesn't require memorizing CLI flags. Structured around a small number of reusable pieces: one component that runs every command safely (own process group, no pipe a stray child can hold open, hard timeout), one that lets background threads talk to the UI thread safely, one that manages recurring poll jobs per screen. Ships with a <code>--selftest</code> flag that builds every screen headless and fails on any UI callback error or a poll job that outlives its screen — run after every change, not just hoped to still work.</div>
+      <div class="det-status live" style="margin-top:.5rem;">● selftest builds all 15 screens clean before any change ships</div>
+    </div>
+  </div>
+
+  <!-- real bugs found -->
+  <div class="cli" style="margin-top:2rem"><span class="prompt">$</span> arc read TOOLKIT --section=real-bugs</div>
+  <div class="sec-head">[ real bugs found and fixed — not hypothetical ]</div>
+  <div class="p" style="font-size:12px;color:var(--dim);">A few, picked because each one only got caught by actually testing the fix, not by assuming a standard API would behave as documented:</div>
+
+  <div class="log-entry"><span class="log-ok">FIX</span><span class="log-txt">Taskbar showed a generic icon instead of the app's own — root cause was a 256×256 image handed to the X11 icon property, which silently fails above a size limit (confirmed via <code>xprop</code>: empty property at 256px, correct one at 48px). Not a permissions or config issue, just a size ceiling nothing warns you about.</span></div>
+  <div class="log-entry"><span class="log-ok">FIX</span><span class="log-txt">Built a maximize button using the standard cross-platform toggle API — then tested it directly (no UI click, just the raw call + a geometry check) before shipping, and found it's a silent no-op on this window manager: no error, no state change, just nothing happens. Replaced with a manual geometry calculation against the desktop's real usable area, confirmed working the same rigorous way.</span></div>
+  <div class="log-entry"><span class="log-ok">FIX</span><span class="log-txt">A one-time "grow the console on first use" feature marked itself done before confirming the resize actually succeeded — a failed first attempt (window not fully drawn yet) would have silently disabled the feature for the rest of the session. Fixed the ordering so it only marks done after a real, verified attempt.</span></div>
+  <div class="log-entry"><span class="log-ok">FIX</span><span class="log-txt">A listening-services security check had two bugs stacked on each other: a loopback-exclusion regex anchored against the wrong part of the line (never matched, so localhost-only services were false-flagged as network-exposed), and a second "must be a wildcard bind" filter that matched every line regardless of actual bind address — silently doing nothing. Root-caused both by testing the actual tool output line-by-line instead of trusting the logic on read.</span></div>
+
+  <!-- footer -->
+  <div class="foot">
+    <div>
+      <a href="/">← blue-team.kontor.studio</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/kwasikontor45/arc-toolkit" target="_blank" rel="noopener">github: arc-toolkit</a>
+    </div>
+    <div class="phase-label" id="phase-label">loading...</div>
+  </div>
+
+</div>
+<script>
+  (function(){
+    var h = new Date().getHours();
+    var phase = h>=21||h<6 ? 'nyx' : h<11 ? 'choice' : h<17 ? 'desire' : 'still-pine';
+    var label = h>=21||h<6 ? 'nyx' : h<11 ? 'choice' : h<17 ? 'desire' : 'still-pine';
+    document.documentElement.setAttribute('data-phase', phase);
+    document.getElementById('phase-label').textContent = '[' + label + ']·STATE: ADAPTIVE_SYNC ☿⚕';
+  })();
+</script>
+</body>
+</html>
