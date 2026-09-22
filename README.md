@@ -5,22 +5,20 @@
 ### Deploy
 
 **This is a manual-deploy site — pushing to `main` does NOT auto-build it.**
-Unlike the other kontor-studio-family sites, this Cloudflare Pages project
-was set up as a "Direct Uploads" project rather than a Git-connected one,
-and Cloudflare doesn't allow converting that after the fact (confirmed via
-their own API: `You cannot update the source object in a Direct Uploads
-project` — not a permissions issue, a hard platform rule). Fixing it for
-real means creating a brand-new Pages project connected to GitHub and
-re-pointing the `blue-team.kontor.studio` custom domain to it — a real
-project migration, not a config toggle, so it hasn't been done since the
-manual deploy below works fine and takes seconds.
+This is a Cloudflare **Worker with static assets** (see `wrangler.jsonc`:
+`assets.directory = "./"`), not a Pages project — despite what this section
+used to say. Corrected 2026-09-22: `wrangler pages deploy --project-name=
+blue-team-portfolio` fails with "The Pages project does not exist" because
+there genuinely isn't one; `wrangler pages project list` doesn't show it
+either. The right command is plain `wrangler deploy`, which wrangler's own
+error message actually suggests if you hit the Pages error above.
 
 **After every push, deploy manually with:**
 
 ```bash
-CLOUDFLARE_API_TOKEN=<token from ~/dev-notes/surgery-tools/.cftk, key: arc-deploy> \
+CLOUDFLARE_API_TOKEN=<token from ~/dev-notes/surgery-tools/.cftk, key: arc-deploy-workers> \
 CLOUDFLARE_ACCOUNT_ID=<from same file, key: cf-acct-id> \
-npx wrangler pages deploy . --project-name=blue-team-portfolio --commit-dirty=true
+npx wrangler deploy
 ```
 
 No install needed beyond `npx` (it fetches `wrangler` on demand). Confirm
@@ -40,6 +38,7 @@ reliable way to confirm.
 - **Threat Intel:** MITRE ATT&CK
 
 ### Artifacts
+- **[Home SOC Automation](./posts/security-toolkit.html):** self-heal watchdog, IDS/IPS, DNS-layer filtering, infrastructure-as-code discipline, and a Python/Tkinter control panel with its own test harness — the daily-driver side, distinct from the lab work below
 - **[Detection Rules](./detections):** SPL and Sigma rules mapped to MITRE ATT&CK
 - **[Labs](./labs):** LAB-001 — Securing IoT Device Communication with TLS/SSL (MQTT), CND coursework lab reproduced on Docker/Linux instead of the original Windows VMs
 - **[Threat Hunts](./hunts):** HUNT-002 — real brute force captured 2026-04-03, AS8075 (Microsoft Azure IP range)
